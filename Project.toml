@@ -1,0 +1,14 @@
+name = "ConjugateHeatTransfer"
+uuid = "d1bf74a7-3d2a-4dc3-b5e4-6120cadd9be9"
+authors = ["Keaton J. Burns <keaton.burns@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+ApproxFun = "28f2ccd6-bb30-5033-b560-165f7b14dc2f"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ExportAll = "ad2082ca-a69e-11e9-38fa-e96309a31fe4"
+FastTransforms = "057dd010-8810-581a-b7be-e3fc3b93f78c"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
