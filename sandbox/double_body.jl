@@ -7,7 +7,7 @@ using LinearAlgebra
 # Parameters
 U = -1;     # far-field velocity
 L = 5;      # distance between bodies
-N = 32;     # points per slit
+N = 8;     # points per slit
 T1 = 1;     # temperature of body 1
 T2 = -1;    # temperature of body 2
 solve_quad(f, a, b) = ClenshawCurtisQuadrature(f, a, b, 1000);

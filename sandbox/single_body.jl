@@ -6,7 +6,7 @@ using LinearAlgebra
 
 # Parameters
 U = 1;      # far-field velocity
-N = 32;     # points per slit
+N = 8;     # points per slit
 T1 = 1;     # temperature of body
 solve_quad(f, a, b) = ClenshawCurtisQuadrature(f, a, b, 1000);
 plot_quad(f, a, b) = ClenshawCurtisQuadrature(f, a, b, 100);

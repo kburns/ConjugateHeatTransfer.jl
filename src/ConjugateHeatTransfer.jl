@@ -23,26 +23,17 @@ end
 
 """
 T(dφ,dψ,s,f) = int_{-s,s} exp((dφ-z)/2) * K0(sqrt((dφ-z)^2 + dψ^2)/2) * f(z) dz
-             = exp(dφ/2) int_{-s,s} K0(sqrt((dφ-Z)^2 + dψ^2)/2) * F(z) dz
 """
 function SingleLayer(dφ, dψ, s, f; quadrature=AdaptiveQuadrature)
-    F(z) = f(z) * exp(-z/2)
+    F(z) = f(z) * exp((dφ-z)/2) / sqrt(s^2 - z^2)
     integrand(z) = besselk(0, sqrt((dφ-z)^2 + dψ^2)/2) * F(z)
-    # Ignore custom quadrature when far away since adaptive is faster
-    if abs(dψ) > 0.1
-        quadrature = AdaptiveQuadrature
-    end
     integral = quadrature(integrand, -s, s)
-    return exp(dφ/2) * integral
+    return integral
 end
 
 function SplitSingleLayer(dφ, dψ, s, f; quadrature=AdaptiveQuadrature)
-    F(z) = f(z) * exp(-z/2)
+    F(z) = f(z) * exp((dφ-z)/2) / sqrt(s^2 - z^2)
     integrand(z) = besselk(0, sqrt((dφ-z)^2 + dψ^2)/2) * F(z)
-    # Ignore custom quadrature when far away since adaptive is faster
-    if abs(dψ) > 0.01
-        quadrature = AdaptiveQuadrature
-    end
     if abs(dφ) < s
         # Split integral
         integral1 = quadrature(integrand, -s, dφ)
@@ -52,7 +43,7 @@ function SplitSingleLayer(dφ, dψ, s, f; quadrature=AdaptiveQuadrature)
         # Single integral
         integral = quadrature(integrand, -s, s)
     end
-    return exp(dφ/2) * integral
+    return integral
 end
 
 struct panel
