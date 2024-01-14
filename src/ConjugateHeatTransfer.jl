@@ -4,7 +4,7 @@ using ExportAll
 using ApproxFun
 using SpecialFunctions
 using BlockArrays
-using DoubleExponentialFormulas
+using QuadGK
 
 #################
 ## Quadratures ##
@@ -26,7 +26,8 @@ function ClenshawCurtisQuadrature(f, a, b, N)
     return sum(F)
 end
 
-default_quadrature(f, a, b) = quadde(f, a, b; atol=1e-10, rtol=1e-10)[1];
+default_quadrature(f, a, b) = quadgk(f, a, b; atol=1e-10, rtol=1e-10)[1];
+default_quadrature(f, a, b, c) = quadgk(f, a, b, c; atol=1e-10, rtol=1e-10)[1];
 
 ######################
 ## Layer potentials ##
@@ -39,29 +40,23 @@ kernel(dφ, dψ) = exp(dφ/2) * besselk(0, sqrt(dφ^2 + dψ^2)/2)
 
 function SingleLayer(dφ, dψ, s, f; quadrature=default_quadrature)
     # int_{-s,s} K(dφ-z,dψ) f(z) / sqrt(s^2 - z^2) dz
-    integrand(z) = kernel(dφ-z,dψ) * f(z) / sqrt(s^2 - z^2)
-    integral = quadrature(integrand, -s, s)
+    # int_{0,π} K(dφ-s*cos(q),dψ) f(s*cos(q)) dq
+    integrand(q) = kernel(dφ-s*cos(q),dψ) * f(s*cos(q))
+    integral = quadrature(integrand, 0, π)
     return integral
 end
 
-function SplitSingleLayer(dφ, dψ, s, f; quadrature=default_quadrature)
-    if (abs(dφ) >= s)
+function SplitSingleLayer(dφ, dψ, s, f; dψ_split=0, quadrature=default_quadrature)
+    # int_{-s,s} K(dφ-z,dψ) f(z) / sqrt(s^2 - z^2) dz
+    # int_{0,π} K(dφ-s*cos(q),dψ) f(s*cos(q)) dq
+    integrand(q) = kernel(dφ-s*cos(q),dψ) * f(s*cos(q))
+    if (abs(dφ) >= s) || (abs(dψ) > dψ_split)
         # Single integral
-        # Align kernel singularity at Z = z-dφ = 0
-        # int_{-s-dφ,s-dφ} K(-Z,dψ) f(Z+dφ) / sqrt(s^2 - (Z+dφ)^2) dZ
-        integrand(Z) = kernel(-Z,dψ) * f(Z+dφ) / sqrt(abs(s^2 - (Z+dφ)^2))
-        integral = quadrature(integrand, -s-dφ, s-dφ)
+        integral = quadrature(integrand, 0, π)
     else
         # Split integral
-        # Rescale so left endpoint singularity is at q = Z/(s+dφ) = -1
-        # int_{-1,0} K(-q*(s+dφ),dψ) f(q*(s+dφ)+dφ) / sqrt(s^2 - (q*(s+dφ)+dφ)^2) (s+dφ) dq
-        # Rescale so right endpoint singularity is at q = Z/(s-dφ) = 1
-        # int_{0, 1} K(-q*(s-dφ),dψ) f(q*(s-dφ)+dφ) (s-dφ) / sqrt(s^2 - (q*(s-dφ)+dφ)^2) dq
-        integrand1(q) = kernel(-q*(s+dφ),dψ) * f(q*(s+dφ)+dφ) * (s+dφ) / sqrt(s^2 - (s*q+(1+q)*dφ)^2)
-        integrand2(q) = kernel(-q*(s-dφ),dψ) * f(q*(s-dφ)+dφ) * (s-dφ) / sqrt(s^2 - (s*q+(1-q)*dφ)^2)
-        integral1 = quadrature(integrand1, -1, 0)
-        integral2 = quadrature(integrand2, 0, 1)
-        integral = integral1 + integral2
+        q0 = acos(dφ/s)
+        integral = quadrature(integrand, 0, q0, π)
     end
     return integral
 end

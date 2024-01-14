@@ -8,10 +8,11 @@ using DoubleExponentialFormulas
 # Parameters
 U = -1;     # far-field velocity
 L = 5;      # distance between bodies
-N = 8;     # points per slit
+N = 32;     # points per slit
 T1 = 1;     # temperature of body 1
 T2 = -1;    # temperature of body 2
-quad(f, a, b) = quadde(f, a, b; atol=1e-10, rtol=1e-10)[1];
+quad(f, a, b) = quadgk(f, a, b; atol=1e-10, rtol=1e-10)[1];
+quad(f, a, b, c) = quadgk(f, a, b, c; atol=1e-10, rtol=1e-10)[1];
 
 # Mapping
 a = (-L + sqrt(L^2-4)) / 2;

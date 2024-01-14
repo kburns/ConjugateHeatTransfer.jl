@@ -3,13 +3,14 @@ using Revise
 using ConjugateHeatTransfer
 using CairoMakie
 using LinearAlgebra
-using DoubleExponentialFormulas
+using QuadGK
 
 # Parameters
 U = 1;      # far-field velocity
-N = 8;     # points per slit
+N = 16;     # points per slit
 T1 = 1;     # temperature of body
-quad(f, a, b) = quadde(f, a, b; atol=1e-10, rtol=1e-10)[1];
+quad(f, a, b) = quadgk(f, a, b; atol=1e-10, rtol=1e-10)[1];
+quad(f, a, b, c) = quadgk(f, a, b, c; atol=1e-10, rtol=1e-10)[1];
 
 # Mapping
 W(z) = conj(U)*z + U/z;
