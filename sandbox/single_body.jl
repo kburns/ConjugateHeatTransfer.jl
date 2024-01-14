@@ -3,13 +3,13 @@ using Revise
 using ConjugateHeatTransfer
 using CairoMakie
 using LinearAlgebra
+using DoubleExponentialFormulas
 
 # Parameters
 U = 1;      # far-field velocity
 N = 8;     # points per slit
 T1 = 1;     # temperature of body
-solve_quad(f, a, b) = ClenshawCurtisQuadrature(f, a, b, 1000);
-plot_quad(f, a, b) = ClenshawCurtisQuadrature(f, a, b, 100);
+quad(f, a, b) = quadde(f, a, b; atol=1e-10, rtol=1e-10)[1];
 
 # Mapping
 W(z) = conj(U)*z + U/z;
@@ -19,7 +19,7 @@ p1 = panel(0, 0, 2, N);
 panels = [p1];
 
 # Solve for temperature potentials
-M = SystemMatrix(panels; quadrature=solve_quad);
+M = SystemMatrix(panels; quadrature=quad);
 println("Condition number: ", cond(M))
 T = T1 * ones(N);
 f = M \ T;
@@ -35,7 +35,7 @@ Wz = W.(z);
 ψ = imag(Wz);
 
 # Evaluate temperature on regular grid
-T = EvaluateT(φ, ψ, panels, f; quadrature=plot_quad);
+T = EvaluateT(φ, ψ, panels, f; quadrature=quad);
 T[abs.(z) .< 1] .= T1;
 
 # Plot
