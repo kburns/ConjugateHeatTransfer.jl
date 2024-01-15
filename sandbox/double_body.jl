@@ -3,7 +3,7 @@ using Revise
 using ConjugateHeatTransfer
 using CairoMakie
 using LinearAlgebra
-using DoubleExponentialFormulas
+using QuadGK
 
 # Parameters
 U = -1;     # far-field velocity
@@ -11,8 +11,9 @@ L = 5;      # distance between bodies
 N = 32;     # points per slit
 T1 = 1;     # temperature of body 1
 T2 = -1;    # temperature of body 2
-quad(f, a, b) = quadgk(f, a, b; atol=1e-10, rtol=1e-10)[1];
-quad(f, a, b, c) = quadgk(f, a, b, c; atol=1e-10, rtol=1e-10)[1];
+quad(args...) = quadgk_count(args...; atol=1e-10, rtol=1e-10);
+solve_quad(args...) = quad(args...)[1];
+plot_quad(args...) = collect(quad(args...));
 
 # Mapping
 a = (-L + sqrt(L^2-4)) / 2;
@@ -39,7 +40,7 @@ p2 = panel((a2+b2)/2, 0, abs(b2-a2)/2, N);
 panels = [p1, p2];
 
 # Solve for temperature potentials
-M = SystemMatrix(panels; quadrature=quad);
+M = SystemMatrix(panels; quadrature=solve_quad);
 println("Condition number: ", cond(M))
 T = [T1*ones(N); T2*ones(N)]
 f = M \ T;
@@ -56,15 +57,34 @@ Wz = W.(ξ.(z));
 ψ = imag(Wz);
 
 # Evaluate temperature on regular grid
-T = EvaluateT(φ, ψ, panels, f; quadrature=quad);
+data = EvaluateSystem(φ, ψ, panels, f; quadrature=plot_quad);
+T = (x->getindex(x,1)).(data);
+error = (x->getindex(x,2)).(data);
+counts = (x->getindex(x,3)).(data);
 T[abs.(z) .< 1] .= T1;
 T[abs.(z.-L) .< 1] .= T2;
 
 # Plot
-fig = Figure(size=(800, 800));
-ax = Axis(fig[1, 1], aspect=DataAspect());
+# Plot
+fig = Figure(size=(2000, 600));
+
+ax = Axis(fig[1,1], aspect=DataAspect());
 co = contourf!(ax, x, y, T', levels=20, extendlow=:auto, extendhigh=:auto);
 arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
 arc!((L,0), 1, 0, 2pi, color=:black, linewidth=1);
 Colorbar(fig[1,2], co);
-fig
+
+ax = Axis(fig[1,3], aspect=DataAspect());
+co = contourf!(ax, x, y, error', levels=20);
+arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
+arc!((L,0), 1, 0, 2pi, color=:black, linewidth=1);
+Colorbar(fig[1,4], co);
+
+ax = Axis(fig[1,5], aspect=DataAspect());
+co = contourf!(ax, x, y, counts', levels=20);
+arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
+arc!((L,0), 1, 0, 2pi, color=:black, linewidth=1);
+Colorbar(fig[1,6], co);
+
+save("double_body.png", fig);
+

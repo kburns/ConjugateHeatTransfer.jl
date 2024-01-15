@@ -113,14 +113,14 @@ function SystemMatrix(panels; quadrature=default_quadrature)
     return M
 end
 
-function EvaluateT(φ, ψ, panels, f; quadrature=default_quadrature)
-    T = 0
-    for i = eachindex(panels)
-        dφ = φ .- panels[i].φ0
-        dψ = ψ .- panels[i].ψ0
-        T = T .+ SplitSingleLayer.(dφ, dψ, panels[i].s, f[i]; quadrature=quadrature)
-    end
-    return T
+function EvaluatePanel(φ, ψ, panel, f; quadrature=default_quadrature)
+    dφ = φ .- panel.φ0
+    dψ = ψ .- panel.ψ0
+    return SplitSingleLayer.(dφ, dψ, panel.s, f; quadrature=quadrature)
+end
+
+function EvaluateSystem(φ, ψ, panels, f; quadrature=default_quadrature)
+    return sum(EvaluatePanel(φ, ψ, panels[i], f[i]; quadrature=quadrature) for i = eachindex(panels))
 end
 
 @exportAll()
