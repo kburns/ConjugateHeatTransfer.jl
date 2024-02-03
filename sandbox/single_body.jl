@@ -8,25 +8,26 @@ using QuadGK
 # Parameters
 U = 1;      # far-field velocity
 N = 16;     # points per slit
-T1 = 1;     # temperature of body
-quad(args...) = quadgk_count(args...; atol=1e-10, rtol=1e-10);
-solve_quad(args...) = quad(args...)[1];
-plot_quad(args...) = collect(quad(args...));
+solve_quad(args...) = quadgk(args...; atol=1e-10, rtol=1e-10)[1];
+plot_quad(args...) = collect(quadgk_count(args...; atol=1e-3, rtol=1e-3));
 
-# Mapping
+# Bodies
+z1(θ) = exp(im*θ);
+T1(θ) = 2 + cos(4*θ) + sin(4*θ);
+bodies = [DirichletBody(z1, T1)];
+
+# Flow map
+U = 1;
 W(z) = conj(U)*z + U/z;
+t0 = time();
+reparametrize!(bodies, W);
+println("  Reparametrization done (", round(time()-t0, digits=3), " s)");
 
 # Panels
-p1 = panel(0, 0, 2, N);
-panels = [p1];
-
-# Solve for temperature potentials
-M = SystemMatrix(panels; quadrature=solve_quad);
-println("Condition number: ", cond(M))
-T = T1 * ones(N);
-f = M \ T;
-f1 = BuildInterpolant(p1.space, f[1:N]);
-f = [f1];
+panels = [DirichletPanel(body, N) for body in bodies];
+t0 = time();
+solve_densities!(panels, quadrature=solve_quad);
+println("  Densities solved (", round(time()-t0, digits=3), " s)");
 
 # Build regular physical grid for plotting
 x = Vector(range(-4, 4, length=200));
@@ -37,11 +38,13 @@ Wz = W.(z);
 ψ = imag(Wz);
 
 # Evaluate temperature on regular grid
-data = EvaluateSystem(φ, ψ, panels, f; quadrature=plot_quad);
+t0 = time();
+data = EvaluateSystem(φ, ψ, panels; quadrature=plot_quad);
+println("  System evaluated (", round(time()-t0, digits=3), " s)");
 T = (x->getindex(x,1)).(data);
-error = (x->getindex(x,2)).(data);
+err = (x->getindex(x,2)).(data);
 counts = (x->getindex(x,3)).(data);
-T[abs.(z) .< 1] .= T1;
+T[abs.(z) .< 1] .= T1.(angle.(z))[abs.(z) .< 1];
 
 # Plot
 fig = Figure(size=(2000, 600));
@@ -52,7 +55,7 @@ arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
 Colorbar(fig[1,2], co);
 
 ax = Axis(fig[1,3], aspect=DataAspect());
-co = contourf!(ax, x, y, error', levels=20);
+co = contourf!(ax, x, y, err', levels=20);
 arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
 Colorbar(fig[1,4], co);
 
