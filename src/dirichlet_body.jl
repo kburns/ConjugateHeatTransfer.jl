@@ -5,6 +5,7 @@ using Roots
 
 
 mutable struct DirichletBody
+    zc::Complex
     zθ::Function
     Tθ::Function
     θη::Function
@@ -16,8 +17,8 @@ mutable struct DirichletBody
 end
 
 
-function DirichletBody(zθ, Tθ)
-    return DirichletBody(zθ, Tθ, error, error, error, NaN, NaN, NaN)
+function DirichletBody(zc, zθ, Tθ)
+    return DirichletBody(zc, zθ, Tθ, error, error, error, NaN, NaN, NaN)
 end
 
 
