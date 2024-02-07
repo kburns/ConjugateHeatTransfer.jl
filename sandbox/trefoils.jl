@@ -55,5 +55,5 @@ co = contourf!(ax, x, y, imag(w), levels=50, linewidth=2);
 #plot!(xv,yv,marker=(:circle,5))
 #arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
 Colorbar(fig[1,2], co);
-save("potential_flow.png", fig);
+save("sandbox/trefoils.png", fig);
 
