@@ -12,7 +12,7 @@ using StaticArrays
 # Parameters
 bodyshape(θ) = exp(im*θ) * (1 + 0.2*sin(3*θ));
 N_samples = 200; # number of sample points on each body
-N_laurent = 40; # number of terms in Laurent series around each body
+N_laurent = 70; # number of terms in Laurent series around each body
 U = 1 + 1im; # free stream velocity
 
 # Bodies
@@ -24,14 +24,14 @@ centers = [zc1, zc2, zc3, zc4];
 bodies = [DirichletBody(zc, θ->zc+bodyshape(θ), θ->0) for zc in centers];
 
 # Solve potential flow
-W = solve_potential_flow(bodies, U, N_samples, N_laurent)
+W = laurent_potential_flow(bodies, U, N_samples, N_laurent)
 
 # Evaluate on grid
 gridsize = 400
 x = collect(LinRange(-5, 5, gridsize));
 y = collect(LinRange(-5, 5, gridsize));
 z = x .+ im*y';
-w = W.(z);
+w = reshape(W(vec(z)), size(z));
 
 # Mask inside
 function check_inside(body, z)
