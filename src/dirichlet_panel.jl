@@ -4,12 +4,11 @@ using BlockArrays
 
 
 mutable struct DirichletPanel
+    body::DirichletBody
     φ0::Float64
     ψ0::Float64
     s::Float64
-    N::Int64
     space::Chebyshev
-    nodes::Vector{Float64}
     T_top::Function
     T_bot::Function
     SL_density::Function
@@ -17,44 +16,44 @@ mutable struct DirichletPanel
 end
 
 
-function DirichletPanel(body, N)
+function DirichletPanel(body)
     φ0 = (body.φmin + body.φmax) / 2
     ψ0 = body.ψ
     s = (body.φmax - body.φmin) / 2
     space = Chebyshev(-s..s)
-    nodes = points(space, N)
     T_top(z) = body.Tη(acos(z/s))
     T_bot(z) = body.Tη(-acos(z/s))
-    return DirichletPanel(φ0, ψ0, s, N, space, nodes, T_top, T_bot, error, error)
+    return DirichletPanel(body, φ0, ψ0, s, space, T_top, T_bot, error, error)
 end
 
 
-function solve_DL_densities!(panels::Vector{DirichletPanel})
+function solve_DL_densities!(panels::Vector{DirichletPanel}; atol=0, N=Inf)
     for p in panels
-        T_diff = @. (p.T_top(p.nodes) - p.T_bot(p.nodes)) / 2
-        g = @. - T_diff / π / sqrt(p.s^2 - p.nodes^2)
-        g = interpolate_values(p.space, g)
-        p.DL_density = g
+        g(z) = (p.T_top(z) - p.T_bot(z)) / 2 / π / sqrt(p.s^2 - z^2)
+        p.DL_density = build_interpolant(g, p.space; atol=atol, N=N, label="g")
+        #gg(θ) = (p.body.Tη(θ) - p.body.Tη(-θ))
+        #build_interpolant(gg, Fourier(0..2π); atol=atol, N=N, label="gθ")
     end
 end
 
 
-function solve_SL_densities!(panels::Vector{DirichletPanel}; quadrature=default_quadrature)
+function solve_SL_densities!(panels::Vector{DirichletPanel}, N::Int; quadrature=default_quadrature)
     # Build RHS from mean panel temperatures
-    RHS = [(p.T_top.(p.nodes)+p.T_bot.(p.nodes))/2 for p in panels]
+    nodes = points(Chebyshev(), N)
+    RHS = [(p.T_top.(p.s*nodes)+p.T_bot.(p.s*nodes))/2 for p in panels]
     # Subtract off DL contributions
     for i = 1:length(panels)
         for j = 1:length(panels)
             if i == j
                 continue
             end
-            RHS[i] -= DoubleLayer.(panels[i].φ0 .+ panels[i].nodes .- panels[j].φ0, panels[i].ψ0 - panels[j].ψ0, panels[j].s, panels[j].DL_density; quadrature=quadrature)
+            RHS[i] -= DoubleLayer.(panels[i].φ0 .+ panels[i].s*nodes .- panels[j].φ0, panels[i].ψ0 - panels[j].ψ0, panels[j].s, panels[j].DL_density; quadrature=quadrature)
         end
     end
     # Solve for SL densities
-    M = SystemMatrix(panels; quadrature=quadrature)
+    M = SystemMatrix(panels, N; quadrature=quadrature)
     f = M \ vcat(RHS...)
-    Ns = [p.N for p in panels]
+    Ns = [N for p in panels]
     f = split(f, Ns)
     for i = 1:length(panels)
         panels[i].SL_density = interpolate_values(panels[i].space, f[i])
@@ -62,9 +61,9 @@ function solve_SL_densities!(panels::Vector{DirichletPanel}; quadrature=default_
 end
 
 
-function solve_densities!(panels::Vector{DirichletPanel}; quadrature=default_quadrature)
-    solve_DL_densities!(panels)
-    solve_SL_densities!(panels; quadrature=quadrature)
+function solve_densities!(panels::Vector{DirichletPanel}, N::Int; atol=0, quadrature=default_quadrature)
+    solve_DL_densities!(panels; atol=atol)
+    solve_SL_densities!(panels, N; quadrature=quadrature)
 end
 
 
@@ -87,14 +86,15 @@ function CardinalFunction(space, N, n)
 end
 
 
-function InteractionMatrix(source_panel, target_panel; quadrature=default_quadrature)
-    Ns = source_panel.N
-    Nt = target_panel.N
+function InteractionMatrix(source_panel, target_panel, N; quadrature=default_quadrature)
+    nodes = points(Chebyshev(), N)
+    Ns = N
+    Nt = N
     M = zeros(Nt, Ns)
     for ns = 1:Ns
         fs = CardinalFunction(source_panel.space, Ns, ns)
         for nt = 1:Nt
-            dφ = target_panel.φ0 - source_panel.φ0 + target_panel.nodes[nt]
+            dφ = target_panel.φ0 - source_panel.φ0 + target_panel.s*nodes[nt]
             dψ = target_panel.ψ0 - source_panel.ψ0
             M[nt,ns] = SplitSingleLayer(dφ, dψ, source_panel.s, fs; quadrature=quadrature)
         end
@@ -103,13 +103,12 @@ function InteractionMatrix(source_panel, target_panel; quadrature=default_quadra
 end
 
 
-function SystemMatrix(panels; quadrature=default_quadrature)
-    N = length(panels)
-    sizes = [panels[i].N for i = 1:N]
+function SystemMatrix(panels, N; quadrature=default_quadrature)
+    sizes = [N for i in eachindex(panels)]
     M = BlockArray{Float64}(undef_blocks, sizes, sizes)
-    for ns = 1:N
-        for nt = 1:N
-            M[Block(nt,ns)] = InteractionMatrix(panels[ns], panels[nt]; quadrature=quadrature)
+    for ns in eachindex(panels)
+        for nt in eachindex(panels)
+            M[Block(nt,ns)] = InteractionMatrix(panels[ns], panels[nt], N; quadrature=quadrature)
         end
     end
     return M

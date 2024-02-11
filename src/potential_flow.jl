@@ -1,17 +1,48 @@
 
 
 using LinearAlgebra
+using Statistics
+
+
+"""Solver for potential flow around bodies using Laurent series."""
+function adaptive_laurent_potential_flow(bodies::Vector{DirichletBody}, U::Number; atol=1e-10, N_laurent_steps=32, N_laurent_max=1024)
+    N_laurent = N_laurent_steps
+    while N_laurent <= N_laurent_max
+        N_sample = 4 * N_laurent
+        W = laurent_potential_flow(bodies, U, N_sample, N_laurent)
+        error = potential_flow_boundary_error(W, bodies, 8*N_sample)
+        if error < atol
+            println("  N_laurent = ", N_laurent, ", error = ", round(error, sigdigits=3))
+            return W
+        end
+        N_laurent += N_laurent_steps
+    end
+    error("Failed to converge")
+end
 
 
 """Solve the potential flow around bodies using Laurent series."""
 function laurent_potential_flow(bodies::Vector{DirichletBody}, U::Number, N_sample::Int, N_laurent::Int)
-    sample_points = collect(LinRange(0, 2π, N_sample+1)[1:end-1])
+    sample_points = fourier_grid(N_sample)
     body_samples = [b.zθ.(sample_points) for b in bodies]
     body_centers = Vector{ComplexF64}([b.zc for b in bodies])
     fit_values = -imag(conj(U)*body_samples)
     d, H = fit_laurent_arnoldi(body_samples, body_centers, fit_values, N_laurent)
     W(z) = conj(U)*z + evaluate_laurent_arnoldi(d, H, body_centers, z)
     return W
+end
+
+
+"""Compute the error in the potential flow map on the bodies."""
+function potential_flow_boundary_error(W::Function, bodies::Vector{DirichletBody}, N_sample::Int)
+    # Sample bodies
+    sample_points = fourier_grid(N_sample)
+    body_samples = [b.zθ.(sample_points) for b in bodies]
+    # Evaluate ψ on bodies
+    imag_values = [imag.(W(bs)) for bs in body_samples]
+    # Determine error as maximum deviation from the mean on each body
+    errors = [norm(ψ .- mean(ψ), Inf) for ψ in imag_values]
+    return maximum(errors)
 end
 
 
@@ -52,9 +83,9 @@ function fit_laurent_arnoldi(x_vec::Vector{Vector{ComplexF64}}, zc_vec::Vector{C
     end
     # Solve the least squares problem
     f = reduce(vcat, f_vec)
-    println("Condition number: ", cond(Q_full))
+    #println("  Condition number: ", cond(Q_full))
     d = Q_full \ f
-    println("Fitting error: ", norm(Q_full*d - f, Inf))
+    #println("  Fitting error: ", norm(Q_full*d - f, Inf))
     # Complexify the coefficients
     d_complex = zeros(ComplexF64, NB*NL)
     for nb = 1:NB
@@ -83,6 +114,31 @@ function evaluate_laurent_arnoldi(d::Vector{ComplexF64}, H_vec::Vector{Matrix{Co
             end
             W[:,k+1] = w / H[k+1,k]
             y .= y + W[:,k+1] * d[(nb-1)*NL+k+1]
+        end
+        #y = y + conj(W') * d[(nb-1)*NL+1:nb*NL]
+    end
+    return y
+end
+
+
+"""Evaluate orthogonalized Laurent series."""
+function evaluate_laurent_arnoldi(d::Vector{ComplexF64}, H_vec::Vector{Matrix{ComplexF64}}, zc_vec::Vector{ComplexF64}, z::ComplexF64)
+    NB = length(H_vec)
+    NL = size(H_vec[1], 1)
+    W = zeros(ComplexF64, NL)
+    y = 0
+    for nb = 1:NB
+        zc = zc_vec[nb]
+        H = H_vec[nb]
+        W[1] = 1 ./ (z .- zc)
+        y = y + W[1] * d[(nb-1)*NL+1]
+        for k = 1:NL-1
+            w = W[k] ./ (z .- zc)
+            for j = 1:k
+                w = w - H[j,k] * W[j]
+            end
+            W[k+1] = w / H[k+1,k]
+            y = y + W[k+1] * d[(nb-1)*NL+k+1]
         end
         #y = y + conj(W') * d[(nb-1)*NL+1:nb*NL]
     end
