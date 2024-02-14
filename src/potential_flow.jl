@@ -8,9 +8,9 @@ using Statistics
 function adaptive_laurent_potential_flow(bodies::Vector{DirichletBody}, U::Number; atol=1e-10, N_laurent_steps=32, N_laurent_max=1024)
     N_laurent = N_laurent_steps
     while N_laurent <= N_laurent_max
-        N_sample = 4 * N_laurent
+        N_sample = 6 * N_laurent
         W = laurent_potential_flow(bodies, U, N_sample, N_laurent)
-        error = potential_flow_boundary_error(W, bodies, 8*N_sample)
+        error = potential_flow_boundary_error(W, bodies, 4*N_sample)
         if error < atol
             println("  N_laurent = ", N_laurent, ", error = ", round(error, sigdigits=3))
             return W
@@ -106,16 +106,16 @@ function evaluate_laurent_arnoldi(d::Vector{ComplexF64}, H_vec::Vector{Matrix{Co
         zc = zc_vec[nb]
         H = H_vec[nb]
         W[:,1] = 1 ./ (z .- zc)
-        y .= y + W[:,1] * d[(nb-1)*NL+1]
+        #y .= y + W[:,1] * d[(nb-1)*NL+1]
         for k = 1:NL-1
             w = W[:,k] ./ (z .- zc)
             for j = 1:k
                 w = w - H[j,k] * W[:,j]
             end
             W[:,k+1] = w / H[k+1,k]
-            y .= y + W[:,k+1] * d[(nb-1)*NL+k+1]
+            #y .= y + W[:,k+1] * d[(nb-1)*NL+k+1]
         end
-        #y = y + conj(W') * d[(nb-1)*NL+1:nb*NL]
+        y .= y + W * d[(nb-1)*NL+1:nb*NL]
     end
     return y
 end
@@ -131,16 +131,16 @@ function evaluate_laurent_arnoldi(d::Vector{ComplexF64}, H_vec::Vector{Matrix{Co
         zc = zc_vec[nb]
         H = H_vec[nb]
         W[1] = 1 ./ (z .- zc)
-        y = y + W[1] * d[(nb-1)*NL+1]
+        #y = y + W[1] * d[(nb-1)*NL+1]
         for k = 1:NL-1
             w = W[k] ./ (z .- zc)
             for j = 1:k
                 w = w - H[j,k] * W[j]
             end
             W[k+1] = w / H[k+1,k]
-            y = y + W[k+1] * d[(nb-1)*NL+k+1]
+            #y = y + W[k+1] * d[(nb-1)*NL+k+1]
         end
-        #y = y + conj(W') * d[(nb-1)*NL+1:nb*NL]
+        y = y + conj(W') * d[(nb-1)*NL+1:nb*NL]
     end
     return y
 end
