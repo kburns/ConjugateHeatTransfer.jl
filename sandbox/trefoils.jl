@@ -72,7 +72,7 @@ for body in bodies
     check_body(z) = check_inside(body, z)
     interior = check_body.(z)
     φ[interior] .= NaN
-    ψ[interior] .= NaN
+    ψ[interior] .= body.ψ
     T[interior] .= NaN
 end
 
@@ -81,10 +81,18 @@ fig = Figure(size=(1400, 600));
 
 ax = Axis(fig[1,1], aspect=DataAspect(), title="Streamfunction");
 co = contourf!(ax, x, y, ψ', levels=20, extendlow=:auto, extendhigh=:auto);
+for body in bodies
+    boundary = body.zθ.(LinRange(0, 2π, 100))
+    lines!(ax, real(boundary), imag(boundary), color=:black, fill=:black)
+end
 Colorbar(fig[1,2], co);
 
 ax = Axis(fig[1,3], aspect=DataAspect(), title="Temperature");
 co = contourf!(ax, x, y, T', levels=20, extendlow=:auto, extendhigh=:auto);
+for body in bodies
+    boundary = body.zθ.(LinRange(0, 2π, 100))
+    lines!(ax, real(boundary), imag(boundary), color=:black)
+end
 Colorbar(fig[1,4], co);
 
 save("sandbox/trefoils.png", fig);
