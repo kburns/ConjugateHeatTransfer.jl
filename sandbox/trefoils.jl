@@ -83,7 +83,7 @@ ax = Axis(fig[1,1], aspect=DataAspect(), title="Streamfunction");
 co = contourf!(ax, x, y, ψ', levels=20, extendlow=:auto, extendhigh=:auto);
 for body in bodies
     boundary = body.zθ.(LinRange(0, 2π, 100))
-    lines!(ax, real(boundary), imag(boundary), color=:black, fill=:black)
+    lines!(ax, real(boundary), imag(boundary), color=:black, linewidth=6)
 end
 Colorbar(fig[1,2], co);
 
@@ -91,7 +91,7 @@ ax = Axis(fig[1,3], aspect=DataAspect(), title="Temperature");
 co = contourf!(ax, x, y, T', levels=20, extendlow=:auto, extendhigh=:auto);
 for body in bodies
     boundary = body.zθ.(LinRange(0, 2π, 100))
-    lines!(ax, real(boundary), imag(boundary), color=:black)
+    lines!(ax, real(boundary), imag(boundary), color=:black, linewidth=6)
 end
 Colorbar(fig[1,4], co);
 

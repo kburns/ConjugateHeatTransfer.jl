@@ -29,7 +29,7 @@ end
 
 function solve_DL_densities!(panels::Vector{DirichletPanel}; atol=0, N=Inf)
     for p in panels
-        g(z) = (p.T_top(z) - p.T_bot(z)) / 2 / π / sqrt(p.s^2 - z^2)
+        g(z) = -(p.T_top(z) - p.T_bot(z)) / 2 / π / sqrt(p.s^2 - z^2)
         p.DL_density = build_interpolant(g, p.space; atol=atol, N=N, label="g")
         #gg(θ) = (p.body.Tη(θ) - p.body.Tη(-θ))
         #build_interpolant(gg, Fourier(0..2π); atol=atol, N=N, label="gθ")

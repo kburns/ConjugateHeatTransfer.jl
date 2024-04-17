@@ -22,6 +22,12 @@ function DirichletBody(zc, zθ, Tθ)
 end
 
 
+function DirichletBody(zc, zθ)
+    Tθ = θ -> 1
+    return DirichletBody(zc, zθ, Tθ, error, error, error, NaN, NaN, NaN)
+end
+
+
 """Reparametrize body to be locally Joukowsky using the flow map."""
 function reparametrize!(body::DirichletBody, W; atol=0, N=Inf)
     φmin, φmax, ψ, θη = joukowsky_parametrization(W, body.zθ; atol=atol, N=N)

@@ -14,7 +14,7 @@ plot_quad(args...) = collect(quadgk_count(args...; atol=1e-3, rtol=1e-3));
 # Bodies
 z1(θ) = exp(im*θ);
 T1(θ) = 2 + cos(4*θ) + sin(4*θ);
-bodies = [DirichletBody(z1, T1)];
+bodies = [DirichletBody(0, z1, T1)];
 
 # Flow map
 U = 1;
@@ -24,9 +24,9 @@ reparametrize!(bodies, W);
 println("  Reparametrization done (", round(time()-t0, digits=3), " s)");
 
 # Panels
-panels = [DirichletPanel(body, N) for body in bodies];
+panels = [DirichletPanel(body) for body in bodies];
 t0 = time();
-solve_densities!(panels, quadrature=solve_quad);
+solve_densities!(panels, N; quadrature=solve_quad);
 println("  Densities solved (", round(time()-t0, digits=3), " s)");
 
 # Build regular physical grid for plotting
@@ -64,5 +64,5 @@ co = contourf!(ax, x, y, counts', levels=20);
 arc!((0,0), 1, 0, 2pi, color=:black, linewidth=1);
 Colorbar(fig[1,6], co);
 
-save("single_body.png", fig);
+save("sandbox/single_body.png", fig);
 
