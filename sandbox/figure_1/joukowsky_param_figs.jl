@@ -62,7 +62,7 @@ for (nb, bodyshape) in enumerate(bodyshapes)
     end
     hidedecorations!(ax)
     hidespines!(ax)
-    save("sandbox/joukowsky_$nb.pdf", fig);
+    save("sandbox/figure_1/joukowsky_z_$nb.pdf", fig);
 end
 
 
@@ -84,5 +84,5 @@ for body in bodies
 end
 hidedecorations!(ax)
 hidespines!(ax)
-save("sandbox/joukowsky_w.pdf", fig);
+save("sandbox/figure_1/joukowsky_w.pdf", fig);
 
