@@ -1,34 +1,64 @@
 
 
 using ApproxFun
+using RationalFunctionApproximation
+using ComplexRegions
 using Roots
 
 
 mutable struct DirichletBody
-    zc::Complex
+    zc::ComplexF64
     zθ::Function
     Tθ::Function
     θη::Function
     zη::Function
     Tη::Function
-    φmin::Real
-    φmax::Real
-    ψ::Real
+    φmin::Float64
+    φmax::Float64
+    ψ::Float64
+    aaa_poles::Vector{ComplexF64}
+    N_laurent::Int
 end
 
 
+"""Create a DirichletBody from boundary data."""
 function DirichletBody(zc, zθ, Tθ)
-    return DirichletBody(zc, zθ, Tθ, error, error, error, NaN, NaN, NaN)
+    return DirichletBody(zc, zθ, Tθ, error, error, error, NaN, NaN, NaN, ComplexF64[], 0)
 end
 
 
-function DirichletBody(zc, zθ)
-    Tθ = θ -> 1
-    return DirichletBody(zc, zθ, Tθ, error, error, error, NaN, NaN, NaN)
+"""Find interior AAA-LS poles adaptively."""
+function find_aaa_poles_adaptive!(body::DirichletBody; N_sample_init=64, N_sample_max=1024)
+    N_sample = N_sample_init ÷ 2
+    find_aaa_poles!(body, N_sample)
+    N_poles = length(body.aaa_poles)
+    N_sample *= 2
+    while N_sample <= N_sample_max
+        find_aaa_poles!(body, N_sample)
+        N_poles_new = length(body.aaa_poles)
+        if N_poles_new <= N_poles
+            break
+        end
+        N_poles = N_poles_new
+        N_sample *= 2
+    end
 end
 
 
-"""Reparametrize body to be locally Joukowsky using the flow map."""
+"""Find interior AAA-LS poles. TODO: make continuous."""
+function find_aaa_poles!(body::DirichletBody, N_sample::Int)
+    # Get poles from AAA Schwarz problem
+    z = body.zθ.(fourier_grid(N_sample))
+    aaa_approx = aaa(z, conj.(z))
+    aaa_poles = poles(aaa_approx)
+    # Only keep poles inside the polygon with vertices at the sample points x
+    poly = Polygon(z)
+    body.aaa_poles = filter(p -> isinside(p, poly), aaa_poles)
+    println("N samples: ", N_sample, ", AAA poles: ", length(body.aaa_poles))
+end
+
+
+"""Compute the Joukowsky reparametrization of a body."""
 function reparametrize!(body::DirichletBody, W; atol=0, N=Inf)
     φmin, φmax, ψ, θη = joukowsky_parametrization(W, body.zθ; atol=atol, N=N)
     body.θη = θη
@@ -40,10 +70,10 @@ function reparametrize!(body::DirichletBody, W; atol=0, N=Inf)
 end
 
 
-"""Reparametrize body to be locally Joukowsky using the flow map."""
-function reparametrize!(bodies::Vector{DirichletBody}, W; atol=0, N=Inf)
+"""Compute the Joukowsky reparametrization of bodies."""
+function reparametrize!(bodies::Vector{DirichletBody}, W; kw...)
     for body in bodies
-        reparametrize!(body, W; atol=atol, N=N)
+        reparametrize!(body, W; kw...)
     end
 end
 
@@ -51,7 +81,7 @@ end
 """Find Joukowsky parametrization of a curve given a flow map."""
 function joukowsky_parametrization(W, z; atol=0, N=Inf)
     # Approximate W(z(θ)) using ApproxFun to find extrema
-    w = build_interpolant(θ->W(z(θ)), Fourier(0..2π); atol=atol, N=N, label="w")
+    w = build_interpolant(θ->W(z(θ)), Fourier(0..2π); atol=atol/10, N=N, label="w")
     wr = real(w)
     φmin, θmin = findmin(wr)
     φmax, θmax = findmax(wr)
@@ -73,8 +103,10 @@ function find_dθ_roots(wr, θmin, θmax, φmin, φmax; atol=1e-10, N=Inf)
     function dθ(η)
         φ = (φmin + φmax) / 2 + (φmax - φmin) / 2 * cos(η)
         F(θ) = wr(θ) - φ
-        if (η ≈ 0) || (η ≈ 2π)
+        if (η ≈ 0)
             θ = θmax
+        elseif (η ≈ 2π)
+            θ = θmax + 2π
         elseif η ≈ π
             θ = θmin
         elseif η < π

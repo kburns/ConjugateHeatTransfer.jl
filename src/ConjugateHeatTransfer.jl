@@ -1,6 +1,7 @@
 module ConjugateHeatTransfer
 
 using ExportAll
+include("laurent_series.jl")
 include("interpolation.jl")
 include("quadrature.jl")
 include("dirichlet_body.jl")
